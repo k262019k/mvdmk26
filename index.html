@@ -531,4 +531,406 @@
             const pdfDownloadContainer = document.getElementById('pdf-download-container');
             const downloadPdfBtn = document.getElementById('download-pdf');
             const toggleHistoryBtn = document.getElementById('toggle-history');
-            const
+            const historyContent = document.getElementById('history-content');
+            const historyBody = document.getElementById('history-body');
+            
+            // Configuración de Firebase (¡REMPLAZA CON TUS DATOS!)
+            const firebaseConfig = {
+                apiKey: "AIzaSyAllAbuIaU8DKctEHq0d6eXm7eoTYRZeyc",
+                authDomain: "mvdmk26.firebaseapp.com",
+                databaseURL: "https://mvdmk26-default-rtdb.firebaseio.com",
+                projectId: "mvdmk26",
+                storageBucket: "mvdmk26.firebasestorage.app",
+                messagingSenderId: "69688434926",
+                appId: "1:69688434926:web:a43e2544f2e8dc2b8513ff"
+            };
+
+            // Inicializa Firebase
+            firebase.initializeApp(firebaseConfig);
+            const db = firebase.database();
+            console.log("Firebase inicializado correctamente");
+
+            // Variables para el resumen
+            let totalProducts = 0;
+            let totalAmount = 0;
+            let productsList = [];
+            
+            // Mostrar/ocultar campo para otro producto
+            productNameSelect.addEventListener('change', function() {
+                if (this.value === 'other') {
+                    otherProductContainer.classList.remove('hidden');
+                    otherProductName.focus();
+                    productPreviewImage.src = "https://cdn-icons-png.flaticon.com/512/263/263142.png";
+                } else {
+                    otherProductContainer.classList.add('hidden');
+                    const selectedOption = this.options[this.selectedIndex];
+                    const imageUrl = selectedOption.getAttribute('data-image');
+                    productPreviewImage.src = imageUrl || "https://cdn-icons-png.flaticon.com/512/263/263142.png";
+                }
+            });
+            
+            // Controladores de cantidad
+            decreaseQtyBtn.addEventListener('click', function() {
+                let qty = parseInt(productQuantityInput.value);
+                if (qty > 1) {
+                    productQuantityInput.value = qty - 1;
+                }
+            });
+            
+            increaseQtyBtn.addEventListener('click', function() {
+                let qty = parseInt(productQuantityInput.value);
+                productQuantityInput.value = qty + 1;
+            });
+            
+            // Agregar producto
+            addProductBtn.addEventListener('click', function() {
+                let name = productNameSelect.value;
+                const price = parseFloat(productPriceInput.value);
+                const quantity = parseInt(productQuantityInput.value);
+                let imageUrl = "https://cdn-icons-png.flaticon.com/512/263/263142.png"; // Imagen por defecto
+                
+                if (name === 'other') {
+                    name = otherProductName.value.trim();
+                    if (!name) {
+                        alert('Por favor ingrese el nombre del producto');
+                        return;
+                    }
+                } else {
+                    const selectedOption = productNameSelect.options[productNameSelect.selectedIndex];
+                    imageUrl = selectedOption.getAttribute('data-image') || imageUrl;
+                }
+                
+                if (!name || isNaN(price) || isNaN(quantity)) {
+                    alert('Por favor complete todos los campos correctamente');
+                    return;
+                }
+                
+                // Calcular subtotal
+                const subtotal = price * quantity;
+                
+                // Agregar producto a la lista
+                const product = {
+                    name,
+                    price,
+                    quantity,
+                    subtotal,
+                    imageUrl,
+                    id: Date.now() // ID único para eliminar
+                };
+                
+                productsList.push(product);
+                updateProductsTable();
+                updateSummary();
+                saveToFirebase(); // Guardar en Firebase
+                
+                // Mostrar botón de descarga PDF si hay productos
+                if (productsList.length > 0) {
+                    pdfDownloadContainer.classList.remove('hidden');
+                }
+                
+                // Limpiar inputs y mantener foco
+                productNameSelect.value = '';
+                otherProductName.value = '';
+                otherProductContainer.classList.add('hidden');
+                productPriceInput.value = '';
+                productQuantityInput.value = '1';
+                productPreviewImage.src = "https://cdn-icons-png.flaticon.com/512/263/263142.png";
+                productNameSelect.focus();
+            });
+            
+            // Actualizar tabla de productos
+            function updateProductsTable() {
+                productsBody.innerHTML = '';
+                totalProducts = 0;
+                totalAmount = 0;
+                
+                productsList.forEach(product => {
+                    totalProducts += product.quantity;
+                    totalAmount += product.subtotal;
+                    
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td><img src="${product.imageUrl}" class="product-image" alt="${product.name}"></td>
+                        <td>${product.name}</td>
+                        <td>${product.quantity}</td>
+                        <td>$${product.price.toFixed(2)}</td>
+                        <td>$${product.subtotal.toFixed(2)}</td>
+                        <td><button class="delete-btn"><i class="fas fa-trash"></i> Eliminar</button></td>
+                    `;
+                    
+                    // Agregar evento de eliminación
+                    const deleteBtn = row.querySelector('.delete-btn');
+                    deleteBtn.addEventListener('click', function() {
+                        productsList = productsList.filter(p => p.id !== product.id);
+                        updateProductsTable();
+                        updateSummary();
+                        // Ocultar botón PDF si no hay productos
+                        if (productsList.length === 0) {
+                            pdfDownloadContainer.classList.add('hidden');
+                        }
+                    });
+                    
+                    productsBody.appendChild(row);
+                });
+            }
+            
+            // Limpiar lista
+            clearListBtn.addEventListener('click', function() {
+                if (confirm('¿Estás seguro de que quieres limpiar toda la lista de productos?')) {
+                    productsList = [];
+                    updateProductsTable();
+                    updateSummary();
+                    pdfDownloadContainer.classList.add('hidden');
+                }
+            });
+            
+            // Permitir agregar con Enter
+            productPriceInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    addProductBtn.click();
+                }
+            });
+            
+            // Actualizar resumen y opciones de pago
+            function updateSummary() {
+                // Actualizar fila de totales
+                summaryFooter.innerHTML = productsList.length > 0 ? `
+                    <tr class="total-row">
+                        <td colspan="5">TOTAL (${totalProducts} productos)</td>
+                        <td>$${totalAmount.toFixed(2)}</td>
+                    </tr>
+                ` : '';
+                
+                // Calcular opciones de pago
+                const tarjetaTotal = totalAmount;
+                const tresCuotasTotal = totalAmount * 1.13;
+                const seisCuotasTotal = totalAmount * 1.21;
+                const doceCuotasTotal = totalAmount * 1.36;
+                const efectivoTotal = totalAmount * 0.95;
+                
+                // Mostrar opciones de pago
+                paymentOptions.innerHTML = productsList.length > 0 ? `
+                    <div class="payment-card">
+                        <div class="payment-title">Tarjeta Débito/Crédito (1 cuota)</div>
+                        <div class="payment-amount">$${tarjetaTotal.toFixed(2)}</div>
+                        <div class="payment-details">Precio sin recargo</div>
+                        <div class="payment-details">$${tarjetaTotal.toFixed(2)} en 1 pago</div>
+                    </div>
+                    
+                    <div class="payment-card">
+                        <div class="payment-title">3 Cuotas</div>
+                        <div class="payment-amount">$${tresCuotasTotal.toFixed(2)}</div>
+                        <div class="payment-details">13% de recargo</div>
+                        <div class="payment-details">$${(tresCuotasTotal/3).toFixed(2)} x 3</div>
+                    </div>
+                    
+                    <div class="payment-card">
+                        <div class="payment-title">6 Cuotas</div>
+                        <div class="payment-amount">$${seisCuotasTotal.toFixed(2)}</div>
+                        <div class="payment-details">21% de recargo</div>
+                        <div class="payment-details">$${(seisCuotasTotal/6).toFixed(2)} x 6</div>
+                    </div>
+                    
+                    <div class="payment-card">
+                        <div class="payment-title">12 Cuotas</div>
+                        <div class="payment-amount">$${doceCuotasTotal.toFixed(2)}</div>
+                        <div class="payment-details">36% de recargo</div>
+                        <div class="payment-details">$${(doceCuotasTotal/12).toFixed(2)} x 12</div>
+                    </div>
+                    
+                    <div class="payment-card">
+                        <div class="payment-title">Efectivo/Transferencia</div>
+                        <div class="payment-amount">$${efectivoTotal.toFixed(2)}</div>
+                        <div class="payment-details">5% de descuento</div>
+                        <div class="payment-details">Precio final: $${totalAmount.toFixed(2)} → $${efectivoTotal.toFixed(2)}</div>
+                    </div>
+                ` : '<p class="no-products">Agregue productos para ver las opciones de pago</p>';
+            }
+
+            // Función para guardar en Firebase
+            function saveToFirebase() {
+                const presupuestoRef = db.ref('presupuestos/' + Date.now());
+                presupuestoRef.set({
+                    productos: productsList,
+                    total: totalAmount,
+                    fecha: new Date().toISOString()
+                }).then(() => {
+                    console.log("Datos guardados en Firebase");
+                }).catch(error => {
+                    console.error("Error al guardar:", error);
+                });
+            }
+
+            // Función para cargar historial desde Firebase
+            function loadHistory() {
+                db.ref('presupuestos').on('value', (snapshot) => {
+                    const historial = snapshot.val();
+                    console.log("Historial cargado:", historial);
+                    historyBody.innerHTML = '';
+                    
+                    if (historial) {
+                        Object.entries(historial).forEach(([key, presupuesto]) => {
+                            const tr = document.createElement('tr');
+                            tr.innerHTML = `
+                                <td>${new Date(presupuesto.fecha).toLocaleString()}</td>
+                                <td>${presupuesto.productos.length} productos</td>
+                                <td>$${presupuesto.total.toFixed(2)}</td>
+                            `;
+                            historyBody.appendChild(tr);
+                        });
+                    }
+                });
+            }
+
+            // Toggle para mostrar/ocultar historial
+            toggleHistoryBtn.addEventListener('click', function() {
+                historyContent.classList.toggle('hidden');
+                this.innerHTML = historyContent.classList.contains('hidden') ? 
+                    '<i class="fas fa-history"></i> Mostrar Historial' : 
+                    '<i class="fas fa-history"></i> Ocultar Historial';
+                
+                if (!historyContent.classList.contains('hidden')) {
+                    loadHistory();
+                }
+            });
+
+            // Generar PDF
+            downloadPdfBtn.addEventListener('click', function() {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF({
+                    orientation: 'portrait',
+                    unit: 'mm'
+                });
+                
+                // Mostrar mensaje de carga
+                const loadingMessage = document.createElement('div');
+                loadingMessage.style.position = 'fixed';
+                loadingMessage.style.top = '50%';
+                loadingMessage.style.left = '50%';
+                loadingMessage.style.transform = 'translate(-50%, -50%)';
+                loadingMessage.style.backgroundColor = 'rgba(0,0,0,0.8)';
+                loadingMessage.style.color = 'white';
+                loadingMessage.style.padding = '20px';
+                loadingMessage.style.borderRadius = '5px';
+                loadingMessage.style.zIndex = '1000';
+                loadingMessage.textContent = 'Generando PDF...';
+                document.body.appendChild(loadingMessage);
+                
+                try {
+                    // Logo
+                    const logoUrl = "https://lh6.googleusercontent.com/weRprBgsOgo11qMZM9c3AoK0okBLKw5XN9k2t7RBKqE29HEXhqtzAab9OuxfiqRDn2vvhgn-j-XcuUUEpa4XJq0=w16383";
+                    const logoImg = new Image();
+                    logoImg.crossOrigin = "Anonymous";
+                    logoImg.src = logoUrl;
+                    
+                    // Encabezado
+                    doc.setFontSize(18);
+                    doc.setTextColor(106, 13, 173);
+                    doc.setFont('helvetica', 'bold');
+                    doc.text('PRESUPUESTO', 105, 20, { align: 'center' });
+                    
+                    // Fecha
+                    doc.setFontSize(12);
+                    doc.setTextColor(0, 0, 0);
+                    doc.setFont('helvetica', 'normal');
+                    doc.text(`Fecha: ${new Date().toLocaleDateString()}`, 14, 30);
+                    
+                    // Línea decorativa
+                    doc.setDrawColor(106, 13, 173);
+                    doc.setLineWidth(0.5);
+                    doc.line(14, 35, 196, 35);
+                    
+                    // Productos
+                    doc.setFontSize(14);
+                    doc.setTextColor(106, 13, 173);
+                    doc.setFont('helvetica', 'bold');
+                    doc.text('PRODUCTOS', 14, 45);
+                    
+                    // Encabezados de tabla
+                    doc.setFontSize(12);
+                    doc.setTextColor(0, 0, 0);
+                    doc.setFont('helvetica', 'bold');
+                    doc.text('Producto', 14, 55);
+                    doc.text('Cantidad', 80, 55);
+                    doc.text('Precio Unitario', 110, 55);
+                    doc.text('Subtotal', 160, 55);
+                    
+                    // Línea bajo encabezados
+                    doc.line(14, 57, 196, 57);
+                    
+                    // Contenido de productos
+                    doc.setFont('helvetica', 'normal');
+                    let yPosition = 65;
+                    
+                    productsList.forEach(product => {
+                        if (yPosition > 250) {
+                            doc.addPage();
+                            yPosition = 20;
+                        }
+                        
+                        doc.text(product.name, 14, yPosition);
+                        doc.text(product.quantity.toString(), 80, yPosition);
+                        doc.text(`$${product.price.toFixed(2)}`, 110, yPosition);
+                        doc.text(`$${product.subtotal.toFixed(2)}`, 160, yPosition);
+                        yPosition += 10;
+                    });
+                    
+                    // Total
+                    doc.setFontSize(14);
+                    doc.setFont('helvetica', 'bold');
+                    doc.text(`TOTAL: $${totalAmount.toFixed(2)}`, 14, yPosition + 10);
+                    
+                    // Opciones de pago
+                    doc.setFontSize(14);
+                    doc.setTextColor(106, 13, 173);
+                    doc.text('OPCIONES DE PAGO', 14, yPosition + 25);
+                    
+                    doc.setFontSize(12);
+                    doc.setTextColor(0, 0, 0);
+                    doc.setFont('helvetica', 'normal');
+                    
+                    const options = [
+                        `Tarjeta Débito/Crédito (1 cuota): $${totalAmount.toFixed(2)}`,
+                        `3 cuotas: $${(totalAmount * 1.13).toFixed(2)} ($${(totalAmount * 1.13 / 3).toFixed(2)} x 3)`,
+                        `6 cuotas: $${(totalAmount * 1.21).toFixed(2)} ($${(totalAmount * 1.21 / 6).toFixed(2)} x 6)`,
+                        `12 cuotas: $${(totalAmount * 1.36).toFixed(2)} ($${(totalAmount * 1.36 / 12).toFixed(2)} x 12)`,
+                        `Efectivo/Transferencia: $${(totalAmount * 0.95).toFixed(2)} (5% descuento)`
+                    ];
+                    
+                    options.forEach((option, index) => {
+                        if (yPosition + 35 + (index * 10) > 280) {
+                            doc.addPage();
+                            yPosition = 20;
+                        }
+                        doc.text(option, 20, yPosition + 35 + (index * 10));
+                    });
+                    
+                    // Pie de página
+                    doc.setFontSize(10);
+                    doc.setTextColor(100, 100, 100);
+                    doc.text('Gracias por su preferencia', 105, 285, { align: 'center' });
+                    
+                    // Intentar agregar el logo si se cargó
+                    try {
+                        doc.addImage(logoImg, 'JPEG', 14, 10, 40, 15);
+                    } catch (e) {
+                        console.log("No se pudo cargar el logo en el PDF");
+                    }
+                    
+                    // Guardar PDF
+                    doc.save(`presupuesto_${new Date().toISOString().slice(0,10)}.pdf`);
+                } catch (error) {
+                    console.error("Error generando PDF:", error);
+                    alert("Ocurrió un error al generar el PDF. Por favor intente nuevamente.");
+                } finally {
+                    // Ocultar mensaje de carga
+                    document.body.removeChild(loadingMessage);
+                }
+            });
+            
+            // Inicializar
+            updateSummary();
+        });
+    </script>
+</body>
+</html>
