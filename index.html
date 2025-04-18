@@ -1,16 +1,139 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <!-- [Mantén todos los estilos anteriores] -->
-    <!-- ... -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora de Precios</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #6a0dad;
+            --primary-dark: #4b0082;
+            --light-color: #f8fafc;
+            --text-color: #1e293b;
+            --border-color: #e2e8f0;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f7f7f7;
+            color: var(--text-color);
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .price-calculator {
+            max-width: 1000px;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .calculator-header {
+            background: linear-gradient(to right, var(--primary-color), var(--primary-dark));
+            color: white;
+            padding: 15px 25px;
+        }
+
+        .calculator-header h2 {
+            margin: 0;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .product-form {
+            padding: 20px 25px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .form-control:disabled {
+            background-color: #f1f5f9;
+        }
+
+        select.form-control {
+            appearance: none;
+            padding-right: 35px;
+        }
+
+        .btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+        }
+    </style>
 </head>
 <body>
-    <!-- [Mantén toda la estructura HTML anterior] -->
-    <!-- ... -->
+    <div class="price-calculator">
+        <div class="calculator-header">
+            <h2><i class="fas fa-calculator"></i> Calculadora de Precios</h2>
+        </div>
+        
+        <div class="product-form">
+            <div class="form-group">
+                <label for="product-name">Seleccione el Producto:</label>
+                <select id="product-name" class="form-control">
+                    <option value="">-- Seleccione un producto --</option>
+                    <option value="other">Otro producto...</option>
+                </select>
+            </div>
+            
+            <div id="other-product-container" class="hidden">
+                <input type="text" id="other-product-name" class="form-control" placeholder="Nombre del producto">
+            </div>
+            
+            <div class="form-group">
+                <label for="product-price">Precio Unitario ($):</label>
+                <input type="number" id="product-price" class="form-control" min="0" step="0.01" placeholder="0.00">
+            </div>
+            
+            <div class="form-group">
+                <label for="product-quantity">Cantidad:</label>
+                <input type="number" id="product-quantity" class="form-control" min="1" value="1">
+            </div>
+            
+            <button id="add-product" class="btn btn-primary">
+                <i class="fas fa-plus-circle"></i> Agregar Producto
+            </button>
+        </div>
+    </div>
 
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Configuración de Firebase (USAR TUS DATOS)
+            // Configuración de Firebase (REMPLAZA CON TUS DATOS)
             const firebaseConfig = {
                 apiKey: "AIzaSyAllAbuIaU8DKctEHq0d6eXm7eoTYRZeyc",
                 authDomain: "mvdmk26.firebaseapp.com",
@@ -26,53 +149,83 @@
             const db = firebase.database();
             const productosRef = db.ref('productos');
             
-            // Cargar productos activos al iniciar
+            // Elementos del DOM
+            const productNameSelect = document.getElementById('product-name');
+            const otherProductContainer = document.getElementById('other-product-container');
+            const otherProductName = document.getElementById('other-product-name');
+            const productPriceInput = document.getElementById('product-price');
+            const productQuantityInput = document.getElementById('product-quantity');
+            const addProductBtn = document.getElementById('add-product');
+            
+            // Cargar productos activos
             productosRef.orderByChild('activo').equalTo(true).on('value', (snapshot) => {
                 const productos = snapshot.val() || {};
-                const productNameSelect = document.getElementById('product-name');
                 
-                // Limpiar y mantener solo la opción "Otro producto..."
+                // Limpiar select y mantener opción "Otro producto"
                 productNameSelect.innerHTML = `
                     <option value="">-- Seleccione un producto --</option>
                     <option value="other">Otro producto...</option>
                 `;
                 
-                // Agregar productos activos
-                Object.entries(productos).forEach(([id, producto]) => {
+                // Agregar productos activos al select
+                Object.values(productos).forEach(producto => {
                     if (producto.activo) {
                         const option = document.createElement('option');
                         option.value = producto.nombre;
                         option.textContent = producto.nombre;
-                        option.setAttribute('data-precio', producto.precio);
+                        option.dataset.precio = producto.precio;
                         productNameSelect.appendChild(option);
                     }
                 });
             });
 
-            // Modificación: Auto-completar precio cuando seleccionan producto
+            // Manejar cambio de selección
             productNameSelect.addEventListener('change', function() {
                 if (this.value === 'other') {
-                    otherProductContainer.classList.remove('hidden');
+                    otherProductContainer.style.display = 'block';
                     otherProductName.focus();
-                    productPriceInput.value = "";
+                    productPriceInput.value = '';
                     productPriceInput.disabled = false;
                 } else {
-                    otherProductContainer.classList.add('hidden');
+                    otherProductContainer.style.display = 'none';
                     const selectedOption = this.options[this.selectedIndex];
-                    const precio = selectedOption.getAttribute('data-precio');
+                    const precio = selectedOption.dataset.precio;
                     
                     if (precio) {
                         productPriceInput.value = precio;
                         productPriceInput.disabled = true;
                     } else {
-                        productPriceInput.value = "";
+                        productPriceInput.value = '';
                         productPriceInput.disabled = false;
                     }
                 }
             });
 
-            // [Resto de tu código JavaScript actual]
-            // ...
+            // Agregar producto
+            addProductBtn.addEventListener('click', function() {
+                const nombre = productNameSelect.value === 'other' 
+                    ? otherProductName.value.trim() 
+                    : productNameSelect.value;
+                
+                const precio = parseFloat(productPriceInput.value);
+                const cantidad = parseInt(productQuantityInput.value);
+                
+                if (!nombre || isNaN(precio) || precio <= 0 || isNaN(cantidad) || cantidad <= 0) {
+                    alert('Por favor complete todos los campos correctamente');
+                    return;
+                }
+                
+                console.log('Producto agregado:', { nombre, precio, cantidad });
+                alert(`Producto agregado:\n${nombre} - $${precio} x ${cantidad}`);
+                
+                // Limpiar formulario
+                productNameSelect.value = '';
+                otherProductName.value = '';
+                otherProductContainer.style.display = 'none';
+                productPriceInput.value = '';
+                productPriceInput.disabled = false;
+                productQuantityInput.value = '1';
+            });
         });
     </script>
 </body>
