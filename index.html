@@ -12,6 +12,7 @@
             --light-color: #f8fafc;
             --text-color: #1e293b;
             --border-color: #e2e8f0;
+            --danger-color: #ef4444;
         }
 
         body {
@@ -90,6 +91,40 @@
             background-color: var(--primary-color);
             color: white;
         }
+
+        .btn-danger {
+            background-color: var(--danger-color);
+            color: white;
+        }
+
+        .products-list {
+            padding: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background-color: var(--light-color);
+            font-weight: 500;
+        }
+
+        .total-row {
+            font-weight: bold;
+            background-color: var(--light-color);
+        }
+
+        .hidden {
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -111,19 +146,48 @@
                 <input type="text" id="other-product-name" class="form-control" placeholder="Nombre del producto">
             </div>
             
-            <div class="form-group">
-                <label for="product-price">Precio Unitario ($):</label>
-                <input type="number" id="product-price" class="form-control" min="0" step="0.01" placeholder="0.00">
-            </div>
-            
-            <div class="form-group">
-                <label for="product-quantity">Cantidad:</label>
-                <input type="number" id="product-quantity" class="form-control" min="1" value="1">
+            <div class="form-row" style="display: flex; gap: 20px;">
+                <div class="form-group" style="flex: 1;">
+                    <label for="product-price">Precio Unitario ($):</label>
+                    <input type="number" id="product-price" class="form-control" min="0" step="0.01" placeholder="0.00">
+                </div>
+                
+                <div class="form-group" style="flex: 1;">
+                    <label for="product-quantity">Cantidad:</label>
+                    <input type="number" id="product-quantity" class="form-control" min="1" value="1">
+                </div>
             </div>
             
             <button id="add-product" class="btn btn-primary">
                 <i class="fas fa-plus-circle"></i> Agregar Producto
             </button>
+        </div>
+        
+        <div class="products-list">
+            <h3><i class="fas fa-list"></i> Productos Seleccionados</h3>
+            <div class="table-container">
+                <table id="selected-products-table">
+                    <thead>
+                        <tr>
+                            <th>Producto</th>
+                            <th>Precio Unitario</th>
+                            <th>Cantidad</th>
+                            <th>Subtotal</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="selected-products-body">
+                        <!-- Los productos seleccionados aparecerán aquí -->
+                    </tbody>
+                    <tfoot>
+                        <tr class="total-row">
+                            <td colspan="3">TOTAL</td>
+                            <td id="total-amount">$0.00</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
         </div>
     </div>
 
@@ -156,11 +220,20 @@
             const productPriceInput = document.getElementById('product-price');
             const productQuantityInput = document.getElementById('product-quantity');
             const addProductBtn = document.getElementById('add-product');
+            const selectedProductsBody = document.getElementById('selected-products-body');
+            const totalAmountElement = document.getElementById('total-amount');
             
+            // Variables de estado
+            let selectedProducts = [];
+            let productosDisponibles = {};
+
             // Cargar productos activos
             productosRef.orderByChild('activo').equalTo(true).on('value', (snapshot) => {
-                const productos = snapshot.val() || {};
-                
+                productosDisponibles = snapshot.val() || {};
+                actualizarListaProductos();
+            });
+
+            function actualizarListaProductos() {
                 // Limpiar select y mantener opción "Otro producto"
                 productNameSelect.innerHTML = `
                     <option value="">-- Seleccione un producto --</option>
@@ -168,7 +241,7 @@
                 `;
                 
                 // Agregar productos activos al select
-                Object.values(productos).forEach(producto => {
+                Object.values(productosDisponibles).forEach(producto => {
                     if (producto.activo) {
                         const option = document.createElement('option');
                         option.value = producto.nombre;
@@ -177,7 +250,7 @@
                         productNameSelect.appendChild(option);
                     }
                 });
-            });
+            }
 
             // Manejar cambio de selección
             productNameSelect.addEventListener('change', function() {
@@ -201,7 +274,7 @@
                 }
             });
 
-            // Agregar producto
+            // Agregar producto a la lista
             addProductBtn.addEventListener('click', function() {
                 const nombre = productNameSelect.value === 'other' 
                     ? otherProductName.value.trim() 
@@ -215,8 +288,17 @@
                     return;
                 }
                 
-                console.log('Producto agregado:', { nombre, precio, cantidad });
-                alert(`Producto agregado:\n${nombre} - $${precio} x ${cantidad}`);
+                // Agregar producto a la lista
+                const producto = {
+                    id: Date.now(),
+                    nombre,
+                    precio,
+                    cantidad,
+                    subtotal: precio * cantidad
+                };
+                
+                selectedProducts.push(producto);
+                actualizarListaSeleccionados();
                 
                 // Limpiar formulario
                 productNameSelect.value = '';
@@ -226,6 +308,37 @@
                 productPriceInput.disabled = false;
                 productQuantityInput.value = '1';
             });
+
+            function actualizarListaSeleccionados() {
+                selectedProductsBody.innerHTML = '';
+                let total = 0;
+                
+                selectedProducts.forEach(producto => {
+                    total += producto.subtotal;
+                    
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${producto.nombre}</td>
+                        <td>$${producto.precio.toFixed(2)}</td>
+                        <td>${producto.cantidad}</td>
+                        <td>$${producto.subtotal.toFixed(2)}</td>
+                        <td>
+                            <button onclick="eliminarProducto(${producto.id})" class="btn-danger">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    `;
+                    selectedProductsBody.appendChild(tr);
+                });
+                
+                totalAmountElement.textContent = `$${total.toFixed(2)}`;
+            }
+
+            // Función para eliminar producto (debe ser global)
+            window.eliminarProducto = function(id) {
+                selectedProducts = selectedProducts.filter(p => p.id !== id);
+                actualizarListaSeleccionados();
+            };
         });
     </script>
 </body>
