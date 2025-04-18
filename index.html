@@ -103,6 +103,11 @@
             transition: all 0.2s;
         }
 
+        .form-control:disabled {
+            background-color: #f1f5f9;
+            color: #333;
+        }
+
         .form-control:focus {
             outline: none;
             border-color: var(--primary-color);
@@ -548,46 +553,57 @@
             // Inicializa Firebase
             firebase.initializeApp(firebaseConfig);
             const db = firebase.database();
-            console.log("Firebase inicializado correctamente");
-
-            // Variables para el resumen
+            
+            // Referencias a la base de datos
+            const preciosRef = db.ref('preciosProductos');
+            const presupuestosRef = db.ref('presupuestos');
+            
+            // Variables de estado
+            let preciosGuardados = {};
             let totalProducts = 0;
             let totalAmount = 0;
             let productsList = [];
-            
-            // Mostrar/ocultar campo para otro producto
+
+            // Cargar precios existentes al iniciar
+            preciosRef.on('value', (snapshot) => {
+                preciosGuardados = snapshot.val() || {};
+                console.log("Precios cargados:", preciosGuardados);
+            });
+
+            // Actualizar campo de precio según selección
             productNameSelect.addEventListener('change', function() {
                 if (this.value === 'other') {
                     otherProductContainer.classList.remove('hidden');
                     otherProductName.focus();
                     productPreviewImage.src = "https://cdn-icons-png.flaticon.com/512/263/263142.png";
+                    productPriceInput.value = "";
+                    productPriceInput.disabled = false;
+                    productPriceInput.placeholder = "Ingrese precio";
                 } else {
                     otherProductContainer.classList.add('hidden');
                     const selectedOption = this.options[this.selectedIndex];
                     const imageUrl = selectedOption.getAttribute('data-image');
                     productPreviewImage.src = imageUrl || "https://cdn-icons-png.flaticon.com/512/263/263142.png";
+                    
+                    const nombreProducto = this.value;
+                    if (preciosGuardados[nombreProducto]) {
+                        productPriceInput.value = preciosGuardados[nombreProducto];
+                        productPriceInput.disabled = true;
+                        productPriceInput.placeholder = "Precio automático";
+                    } else {
+                        productPriceInput.value = "";
+                        productPriceInput.disabled = false;
+                        productPriceInput.placeholder = "Ingrese precio";
+                    }
                 }
             });
-            
-            // Controladores de cantidad
-            decreaseQtyBtn.addEventListener('click', function() {
-                let qty = parseInt(productQuantityInput.value);
-                if (qty > 1) {
-                    productQuantityInput.value = qty - 1;
-                }
-            });
-            
-            increaseQtyBtn.addEventListener('click', function() {
-                let qty = parseInt(productQuantityInput.value);
-                productQuantityInput.value = qty + 1;
-            });
-            
+
             // Agregar producto
             addProductBtn.addEventListener('click', function() {
                 let name = productNameSelect.value;
-                const price = parseFloat(productPriceInput.value);
+                let price = parseFloat(productPriceInput.value);
                 const quantity = parseInt(productQuantityInput.value);
-                let imageUrl = "https://cdn-icons-png.flaticon.com/512/263/263142.png"; // Imagen por defecto
+                let imageUrl = "https://cdn-icons-png.flaticon.com/512/263/263142.png";
                 
                 if (name === 'other') {
                     name = otherProductName.value.trim();
@@ -600,9 +616,21 @@
                     imageUrl = selectedOption.getAttribute('data-image') || imageUrl;
                 }
                 
-                if (!name || isNaN(price) || isNaN(quantity)) {
+                // Si el precio está deshabilitado (producto existente), usar precio guardado
+                if (productPriceInput.disabled) {
+                    price = preciosGuardados[name];
+                }
+                
+                if (!name || isNaN(price) || price <= 0 || isNaN(quantity) || quantity <= 0) {
                     alert('Por favor complete todos los campos correctamente');
                     return;
+                }
+                
+                // Guardar nuevo precio si es un producto nuevo
+                if (!preciosGuardados[name] && !productPriceInput.disabled) {
+                    preciosRef.child(name).set(price)
+                        .then(() => console.log("Nuevo precio guardado para", name))
+                        .catch(error => console.error("Error al guardar precio:", error));
                 }
                 
                 // Calcular subtotal
@@ -615,30 +643,40 @@
                     quantity,
                     subtotal,
                     imageUrl,
-                    id: Date.now() // ID único para eliminar
+                    id: Date.now()
                 };
                 
                 productsList.push(product);
                 updateProductsTable();
                 updateSummary();
-                saveToFirebase(); // Guardar en Firebase
                 
-                // Mostrar botón de descarga PDF si hay productos
+                // Guardar presupuesto completo
+                savePresupuesto();
+                
+                // Mostrar botón de descarga PDF
                 if (productsList.length > 0) {
                     pdfDownloadContainer.classList.remove('hidden');
                 }
                 
-                // Limpiar inputs y mantener foco
-                productNameSelect.value = '';
-                otherProductName.value = '';
-                otherProductContainer.classList.add('hidden');
-                productPriceInput.value = '';
-                productQuantityInput.value = '1';
-                productPreviewImage.src = "https://cdn-icons-png.flaticon.com/512/263/263142.png";
-                productNameSelect.focus();
+                // Limpiar inputs
+                resetForm();
             });
-            
-            // Actualizar tabla de productos
+
+            // Función para guardar presupuesto completo
+            function savePresupuesto() {
+                const nuevoPresupuestoRef = presupuestosRef.push();
+                nuevoPresupuestoRef.set({
+                    productos: productsList,
+                    total: totalAmount,
+                    fecha: new Date().toISOString()
+                }).then(() => {
+                    console.log("Presupuesto guardado en Firebase");
+                }).catch(error => {
+                    console.error("Error al guardar presupuesto:", error);
+                });
+            }
+
+            // Función para actualizar la tabla de productos
             function updateProductsTable() {
                 productsBody.innerHTML = '';
                 totalProducts = 0;
@@ -658,13 +696,12 @@
                         <td><button class="delete-btn"><i class="fas fa-trash"></i> Eliminar</button></td>
                     `;
                     
-                    // Agregar evento de eliminación
                     const deleteBtn = row.querySelector('.delete-btn');
                     deleteBtn.addEventListener('click', function() {
                         productsList = productsList.filter(p => p.id !== product.id);
                         updateProductsTable();
                         updateSummary();
-                        // Ocultar botón PDF si no hay productos
+                        
                         if (productsList.length === 0) {
                             pdfDownloadContainer.classList.add('hidden');
                         }
@@ -673,27 +710,9 @@
                     productsBody.appendChild(row);
                 });
             }
-            
-            // Limpiar lista
-            clearListBtn.addEventListener('click', function() {
-                if (confirm('¿Estás seguro de que quieres limpiar toda la lista de productos?')) {
-                    productsList = [];
-                    updateProductsTable();
-                    updateSummary();
-                    pdfDownloadContainer.classList.add('hidden');
-                }
-            });
-            
-            // Permitir agregar con Enter
-            productPriceInput.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    addProductBtn.click();
-                }
-            });
-            
-            // Actualizar resumen y opciones de pago
+
+            // Función para actualizar el resumen
             function updateSummary() {
-                // Actualizar fila de totales
                 summaryFooter.innerHTML = productsList.length > 0 ? `
                     <tr class="total-row">
                         <td colspan="5">TOTAL (${totalProducts} productos)</td>
@@ -701,14 +720,12 @@
                     </tr>
                 ` : '';
                 
-                // Calcular opciones de pago
                 const tarjetaTotal = totalAmount;
                 const tresCuotasTotal = totalAmount * 1.13;
                 const seisCuotasTotal = totalAmount * 1.21;
                 const doceCuotasTotal = totalAmount * 1.36;
                 const efectivoTotal = totalAmount * 0.95;
                 
-                // Mostrar opciones de pago
                 paymentOptions.innerHTML = productsList.length > 0 ? `
                     <div class="payment-card">
                         <div class="payment-title">Tarjeta Débito/Crédito (1 cuota)</div>
@@ -747,23 +764,52 @@
                 ` : '<p class="no-products">Agregue productos para ver las opciones de pago</p>';
             }
 
-            // Función para guardar en Firebase
-            function saveToFirebase() {
-                const presupuestoRef = db.ref('presupuestos/' + Date.now());
-                presupuestoRef.set({
-                    productos: productsList,
-                    total: totalAmount,
-                    fecha: new Date().toISOString()
-                }).then(() => {
-                    console.log("Datos guardados en Firebase");
-                }).catch(error => {
-                    console.error("Error al guardar:", error);
-                });
+            // Función para resetear el formulario
+            function resetForm() {
+                productNameSelect.value = '';
+                otherProductName.value = '';
+                otherProductContainer.classList.add('hidden');
+                productPriceInput.value = '';
+                productPriceInput.disabled = false;
+                productPriceInput.placeholder = "0.00";
+                productQuantityInput.value = '1';
+                productPreviewImage.src = "https://cdn-icons-png.flaticon.com/512/263/263142.png";
+                productNameSelect.focus();
             }
 
-            // Función para cargar historial desde Firebase
+            // Controladores de cantidad
+            decreaseQtyBtn.addEventListener('click', function() {
+                let qty = parseInt(productQuantityInput.value);
+                if (qty > 1) {
+                    productQuantityInput.value = qty - 1;
+                }
+            });
+            
+            increaseQtyBtn.addEventListener('click', function() {
+                let qty = parseInt(productQuantityInput.value);
+                productQuantityInput.value = qty + 1;
+            });
+
+            // Limpiar lista
+            clearListBtn.addEventListener('click', function() {
+                if (confirm('¿Estás seguro de que quieres limpiar toda la lista de productos?')) {
+                    productsList = [];
+                    updateProductsTable();
+                    updateSummary();
+                    pdfDownloadContainer.classList.add('hidden');
+                }
+            });
+
+            // Permitir agregar con Enter
+            productPriceInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    addProductBtn.click();
+                }
+            });
+
+            // Cargar historial
             function loadHistory() {
-                db.ref('presupuestos').on('value', (snapshot) => {
+                presupuestosRef.on('value', (snapshot) => {
                     const historial = snapshot.val();
                     console.log("Historial cargado:", historial);
                     historyBody.innerHTML = '';
