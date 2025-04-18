@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>mvdmk26 Sistema</title>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+    #app { background: #f9f9f9; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    input, button { padding: 10px; margin: 5px 0; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    button { cursor: pointer; background: #4285f4; color: white; border: none; border-radius: 4px; }
+    button.delete { background: #ea4335; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <h1>mvdmk26 - Mi Sistema</h1>
+    
+    <div>
+      <input type="text" id="itemText" placeholder="Escribe algo...">
+      <button onclick="addItem()">Guardar</button>
+    </div>
+    
+    <table id="itemsTable">
+      <thead>
+        <tr>
+          <th>Contenido</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <script>
+    // Configuración de Firebase (usa tus datos reales)
+    const firebaseConfig = {
+      apiKey: "AIzaSyAllAbuIaU8DKctEHq0d6eXm7eoTYRZeyc",
+      authDomain: "mvdmk26.firebaseapp.com",
+      databaseURL: "https://mvdmk26-default-rtdb.firebaseio.com",
+      projectId: "mvdmk26",
+      storageBucket: "mvdmk26.firebasestorage.app",
+      messagingSenderId: "69688434926",
+      appId: "1:69688434926:web:a43e2544f2e8dc2b8513ff"
+    };
+    
+    // Inicializa Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // Añadir elemento
+    function addItem() {
+      const text = document.getElementById('itemText').value;
+      if (!text) return;
+      
+      db.ref('items').push({
+        content: text,
+        timestamp: firebase.database.ServerValue.TIMESTAMP
+      });
+      
+      document.getElementById('itemText').value = '';
+    }
+
+    // Cargar y mostrar elementos
+    db.ref('items').on('value', (snapshot) => {
+      const tbody = document.querySelector('#itemsTable tbody');
+      tbody.innerHTML = '';
+      
+      const items = [];
+      snapshot.forEach((childSnapshot) => {
+        items.push({
+          id: childSnapshot.key,
+          ...childSnapshot.val()
+        });
+      });
+      
+      // Ordenar por timestamp (nuevos primero)
+      items.sort((a, b) => b.timestamp - a.timestamp);
+      
+      // Mostrar en tabla
+      items.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${item.content}</td>
+          <td><button class="delete" onclick="deleteItem('${item.id}')">Eliminar</button></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    });
+
+    // Eliminar elemento
+    function deleteItem(id) {
+      if (confirm('¿Seguro que quieres eliminar este elemento?')) {
+        db.ref('items/' + id).remove();
+      }
+    }
+  </script>
+</body>
+</html>
