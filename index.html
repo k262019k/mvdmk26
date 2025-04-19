@@ -5,22 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cotización en Línea</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Biblioteca para generar PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     <style>
         :root {
             --primary-color: #6a0dad;
             --primary-dark: #4b0082;
+            --primary-light: #9c64ff;
             --light-color: #f8fafc;
             --text-color: #1e293b;
             --border-color: #e2e8f0;
             --danger-color: #ef4444;
             --success-color: #10b981;
+            --card-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
         }
 
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #f7f7f7;
             color: var(--text-color);
             line-height: 1.6;
@@ -28,102 +29,138 @@
             padding: 20px;
         }
 
-        .header-container {
+        .price-calculator {
+            max-width: 1000px;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: var(--card-shadow);
+            overflow: hidden;
+        }
+
+        .calculator-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            color: white;
+            padding: 20px 30px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
+            position: relative;
+            overflow: hidden;
         }
 
-        .header-title {
+        .calculator-header::before {
+            content: "";
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 100%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%);
+            transform: rotate(30deg);
+        }
+
+        .calculator-header h2 {
+            margin: 0;
+            font-size: 1.8rem;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 15px;
+            font-weight: 600;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            position: relative;
+            z-index: 1;
+        }
+
+        .logo-container {
+            position: relative;
+            z-index: 1;
+            background: white;
+            padding: 8px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+
+        .logo-container:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
         }
 
         .custom-logo {
             height: 50px;
             width: auto;
-        }
-
-        .price-calculator {
-            max-width: 1000px;
-            margin: 0 auto;
-            background-color: white;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            overflow: hidden;
-        }
-
-        .calculator-header {
-            background: linear-gradient(to right, var(--primary-color), var(--primary-dark));
-            color: white;
-            padding: 15px 25px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .calculator-header h2 {
-            margin: 0;
-            font-size: 1.5rem;
-            display: flex;
-            align-items: center;
-            gap: 10px;
+            object-fit: contain;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
         }
 
         .product-form {
-            padding: 20px 25px;
+            padding: 25px 30px;
             border-bottom: 1px solid var(--border-color);
         }
 
         .form-group {
-            margin-bottom: 15px;
+            margin-bottom: 20px;
         }
 
         .form-group label {
             display: block;
-            margin-bottom: 8px;
+            margin-bottom: 10px;
             font-weight: 500;
+            color: var(--text-color);
+            font-size: 15px;
         }
 
         .form-control {
             width: 100%;
-            padding: 10px 12px;
+            padding: 12px 15px;
             border: 1px solid var(--border-color);
-            border-radius: 4px;
-            font-size: 14px;
+            border-radius: 8px;
+            font-size: 15px;
+            transition: all 0.3s;
+            background-color: white;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary-light);
+            box-shadow: 0 0 0 3px rgba(156, 100, 255, 0.3);
         }
 
         .form-control:disabled {
-            background-color: #f1f5f9;
+            background-color: #f8f9fa;
         }
 
         select.form-control {
-            appearance: none;
-            padding-right: 35px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%236a0dad' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            background-size: 12px;
         }
 
         .btn {
-            padding: 10px 16px;
+            padding: 12px 20px;
             border: none;
-            border-radius: 4px;
+            border-radius: 8px;
             cursor: pointer;
-            font-weight: 500;
+            font-weight: 600;
             display: inline-flex;
             align-items: center;
-            gap: 8px;
-            transition: all 0.2s;
+            gap: 10px;
+            transition: all 0.3s;
+            font-size: 15px;
         }
 
         .btn-primary {
             background-color: var(--primary-color);
             color: white;
+            box-shadow: 0 4px 6px rgba(106, 13, 173, 0.2);
         }
 
         .btn-primary:hover {
             background-color: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(106, 13, 173, 0.3);
         }
 
         .btn-danger {
@@ -133,45 +170,70 @@
 
         .btn-danger:hover {
             background-color: #dc2626;
+            transform: translateY(-2px);
         }
 
         .btn-success {
             background-color: var(--success-color);
             color: white;
+            box-shadow: 0 4px 6px rgba(16, 185, 129, 0.2);
         }
 
         .btn-success:hover {
             background-color: #059669;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(16, 185, 129, 0.3);
         }
 
         .btn-sm {
-            padding: 5px 10px;
-            font-size: 12px;
+            padding: 8px 12px;
+            font-size: 14px;
         }
 
         .products-list {
-            padding: 20px;
+            padding: 25px 30px;
+            display: none;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         table {
             width: 100%;
-            border-collapse: collapse;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin: 20px 0;
         }
 
         th, td {
-            padding: 12px 15px;
+            padding: 15px;
             text-align: left;
             border-bottom: 1px solid var(--border-color);
         }
 
         th {
-            background-color: var(--light-color);
-            font-weight: 500;
+            background-color: var(--primary-color);
+            color: white;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+        }
+
+        tr:hover td {
+            background-color: rgba(106, 13, 173, 0.05);
         }
 
         .total-row {
             font-weight: bold;
             background-color: var(--light-color);
+        }
+
+        .total-row td {
+            padding: 15px;
+            font-size: 16px;
         }
 
         .hidden {
@@ -181,49 +243,62 @@
         .quantity-control {
             display: flex;
             align-items: center;
-            gap: 5px;
+            gap: 8px;
         }
 
         .quantity-btn {
-            width: 25px;
-            height: 25px;
+            width: 30px;
+            height: 30px;
             display: flex;
             align-items: center;
             justify-content: center;
             border: 1px solid var(--border-color);
             background-color: white;
-            border-radius: 4px;
+            border-radius: 6px;
             cursor: pointer;
+            transition: all 0.2s;
         }
 
         .quantity-btn:hover {
             background-color: #f1f5f9;
+            border-color: var(--primary-light);
         }
 
         .quantity-input {
-            width: 50px;
+            width: 60px;
             text-align: center;
-            padding: 5px;
+            padding: 8px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            font-weight: 500;
         }
 
         .actions-footer {
             display: flex;
             justify-content: flex-end;
-            margin-top: 20px;
-            gap: 10px;
+            margin-top: 30px;
+            gap: 15px;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 25px;
+        }
+
+        .form-col {
+            flex: 1;
         }
 
         @media (max-width: 768px) {
-            .header-container {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 10px;
-            }
-            
             .calculator-header {
                 flex-direction: column;
-                align-items: flex-start;
-                gap: 10px;
+                text-align: center;
+                gap: 20px;
+                padding: 20px;
+            }
+            
+            .calculator-header h2 {
+                font-size: 1.5rem;
             }
             
             .form-row {
@@ -231,31 +306,43 @@
                 gap: 15px;
             }
             
-            .form-col {
-                width: 100%;
-            }
-            
             .quantity-control {
-                flex-direction: column;
-                align-items: center;
-                gap: 5px;
+                justify-content: center;
             }
             
             .actions-footer {
                 flex-direction: column;
+                align-items: flex-end;
             }
+            
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+
+        /* Efecto de onda en el encabezado */
+        .wave-effect {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 20px;
+            background: url('data:image/svg+xml;utf8,<svg viewBox="0 0 1200 120" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none"><path d="M0,0V46.29c47.79,22.2,103.59,32.17,158,28,70.36-5.37,136.33-33.31,206.8-37.5C438.64,32.43,512.34,53.67,583,72.05c69.27,18,138.3,24.88,209.4,13.08,36.15-6,69.85-17.84,104.45-29.34C989.49,25,1113-14.29,1200,52.47V0Z" fill="%23f7f7f7" opacity=".25"/><path d="M0,0V15.81C13,36.92,27.64,56.86,47.69,72.05,99.41,111.27,165,111,224.58,91.58c31.15-10.15,60.09-26.07,89.67-39.8,40.92-19,84.73-46,130.83-49.67,36.26-2.85,70.9,9.42,98.6,31.56,31.77,25.39,62.32,62,103.63,73,40.44,10.79,81.35-6.69,119.13-24.28s75.16-39,116.92-43.05c59.73-5.85,113.28,22.88,168.9,38.84,30.2,8.66,59,6.17,87.09-7.5,22.43-10.89,48-26.93,60.65-49.24V0Z" fill="%23f7f7f7" opacity=".5"/><path d="M0,0V5.63C149.93,59,314.09,71.32,475.83,42.57c43-7.64,84.23-20.12,127.61-26.46,59-8.63,112.48,12.24,165.56,35.4C827.93,77.22,886,95.24,951.2,90c86.53-7,172.46-45.71,248.8-84.81V0Z" fill="%23f7f7f7"/></svg>');
+            background-size: cover;
         }
     </style>
 </head>
 <body>
-    <div class="header-container">
-        <div class="header-title">
-            <h1><i class="fas fa-file-invoice-dollar"></i> Cotización en línea</h1>
-        </div>
-        <img src="https://lh4.googleusercontent.com/Zjd-z78wU7ddkWRMgR89MvxGYqVk-XVcZBMtIEgXMvuCAixXR9HB5_XX7G9yb9A6RABRufqJRz7xwmfe2KcWk8w=w16383" alt="Logo" class="custom-logo">
-    </div>
-
     <div class="price-calculator">
+        <div class="calculator-header">
+            <h2><i class="fas fa-file-invoice-dollar"></i> Cotización en línea</h2>
+            <div class="logo-container">
+                <img src="https://lh4.googleusercontent.com/Zjd-z78wU7ddkWRMgR89MvxGYqVk-XVcZBMtIEgXMvuCAixXR9HB5_XX7G9yb9A6RABRufqJRz7xwmfe2KcWk8w=w16383" alt="Logo" class="custom-logo">
+            </div>
+            <div class="wave-effect"></div>
+        </div>
+        
         <div class="product-form">
             <div class="form-group">
                 <label for="product-name">Seleccione el Producto:</label>
@@ -269,15 +356,15 @@
                 <input type="text" id="other-product-name" class="form-control" placeholder="Nombre del producto">
             </div>
             
-            <div class="form-row" style="display: flex; gap: 20px;">
-                <div class="form-col" style="flex: 1;">
+            <div class="form-row">
+                <div class="form-col">
                     <div class="form-group">
                         <label for="product-price">Precio Unitario ($):</label>
                         <input type="number" id="product-price" class="form-control" min="0" step="0.01" placeholder="0.00">
                     </div>
                 </div>
                 
-                <div class="form-col" style="flex: 1;">
+                <div class="form-col">
                     <div class="form-group">
                         <label for="product-quantity">Cantidad:</label>
                         <input type="number" id="product-quantity" class="form-control" min="1" value="1">
@@ -290,7 +377,7 @@
             </button>
         </div>
         
-        <div class="products-list">
+        <div class="products-list" id="products-list-section">
             <h3><i class="fas fa-list-check"></i> Productos Seleccionados</h3>
             <div class="table-container">
                 <table id="selected-products-table">
@@ -324,16 +411,10 @@
         </div>
     </div>
 
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-    
     <script>
-        // Inicializar jsPDF
         const { jsPDF } = window.jspdf;
         
         document.addEventListener('DOMContentLoaded', function() {
-            // Configuración de Firebase
             const firebaseConfig = {
                 apiKey: "AIzaSyAllAbuIaU8DKctEHq0d6eXm7eoTYRZeyc",
                 authDomain: "mvdmk26.firebaseapp.com",
@@ -344,12 +425,10 @@
                 appId: "1:69688434926:web:a43e2544f2e8dc2b8513ff"
             };
 
-            // Inicializa Firebase
             firebase.initializeApp(firebaseConfig);
             const db = firebase.database();
             const productosRef = db.ref('productos');
             
-            // Elementos del DOM
             const productNameSelect = document.getElementById('product-name');
             const otherProductContainer = document.getElementById('other-product-container');
             const otherProductName = document.getElementById('other-product-name');
@@ -359,25 +438,22 @@
             const selectedProductsBody = document.getElementById('selected-products-body');
             const totalAmountElement = document.getElementById('total-amount');
             const downloadPdfBtn = document.getElementById('download-pdf');
+            const productsListSection = document.getElementById('products-list-section');
             
-            // Variables de estado
             let selectedProducts = [];
             let productosDisponibles = {};
 
-            // Cargar productos activos
             productosRef.orderByChild('activo').equalTo(true).on('value', (snapshot) => {
                 productosDisponibles = snapshot.val() || {};
                 actualizarListaProductos();
             });
 
             function actualizarListaProductos() {
-                // Limpiar select y mantener opción "Otro producto"
                 productNameSelect.innerHTML = `
                     <option value="">-- Seleccione un producto --</option>
                     <option value="other">Otro producto...</option>
                 `;
                 
-                // Agregar productos activos al select
                 Object.values(productosDisponibles).forEach(producto => {
                     if (producto.activo) {
                         const option = document.createElement('option');
@@ -389,7 +465,6 @@
                 });
             }
 
-            // Manejar cambio de selección
             productNameSelect.addEventListener('change', function() {
                 if (this.value === 'other') {
                     otherProductContainer.style.display = 'block';
@@ -411,7 +486,6 @@
                 }
             });
 
-            // Agregar producto a la lista
             addProductBtn.addEventListener('click', function() {
                 const nombre = productNameSelect.value === 'other' 
                     ? otherProductName.value.trim() 
@@ -425,13 +499,11 @@
                     return;
                 }
                 
-                // Verificar si el producto ya existe
                 const productoExistente = selectedProducts.find(p => p.nombre === nombre);
                 if (productoExistente) {
                     productoExistente.cantidad += cantidad;
                     productoExistente.subtotal = productoExistente.precio * productoExistente.cantidad;
                 } else {
-                    // Agregar producto a la lista
                     const producto = {
                         id: Date.now(),
                         nombre,
@@ -444,13 +516,17 @@
                 
                 actualizarListaSeleccionados();
                 
-                // Limpiar formulario
                 productNameSelect.value = '';
                 otherProductName.value = '';
                 otherProductContainer.style.display = 'none';
                 productPriceInput.value = '';
                 productPriceInput.disabled = false;
                 productQuantityInput.value = '1';
+                
+                // Mostrar la sección de productos si está oculta
+                if (selectedProducts.length > 0 && productsListSection.style.display === 'none') {
+                    productsListSection.style.display = 'block';
+                }
             });
 
             function actualizarListaSeleccionados() {
@@ -487,9 +563,13 @@
                 });
                 
                 totalAmountElement.textContent = `$${total.toFixed(2)}`;
+                
+                // Ocultar sección si no hay productos
+                if (selectedProducts.length === 0) {
+                    productsListSection.style.display = 'none';
+                }
             }
 
-            // Función para actualizar cantidad desde botones +/-
             window.actualizarCantidad = function(id, cambio) {
                 const producto = selectedProducts.find(p => p.id === id);
                 if (producto) {
@@ -502,7 +582,6 @@
                 }
             };
 
-            // Función para actualizar cantidad desde input
             window.actualizarCantidadInput = function(id, valor) {
                 const producto = selectedProducts.find(p => p.id === id);
                 if (producto) {
@@ -515,13 +594,11 @@
                 }
             };
 
-            // Función para eliminar producto
             window.eliminarProducto = function(id) {
                 selectedProducts = selectedProducts.filter(p => p.id !== id);
                 actualizarListaSeleccionados();
             };
 
-            // Generar PDF
             downloadPdfBtn.addEventListener('click', function() {
                 if (selectedProducts.length === 0) {
                     alert('No hay productos para generar la cotización');
@@ -530,21 +607,18 @@
 
                 const doc = new jsPDF();
                 
-                // Encabezado
+                // Encabezado con logo
+                const logo = new Image();
+                logo.src = 'https://lh4.googleusercontent.com/Zjd-z78wU7ddkWRMgR89MvxGYqVk-XVcZBMtIEgXMvuCAixXR9HB5_XX7G9yb9A6RABRufqJRz7xwmfe2KcWk8w=w16383';
+                
                 doc.setFontSize(18);
-                doc.setTextColor(106, 13, 173); // Color morado
-                doc.text('COTIZACIÓN', 105, 20, { align: 'center' });
+                doc.setTextColor(106, 13, 173);
+                doc.text('COTIZACIÓN', 105, 30, { align: 'center' });
                 
-                // Logo (si se quiere agregar)
-                // const logo = new Image();
-                // logo.src = 'url-del-logo';
-                // doc.addImage(logo, 'JPEG', 10, 10, 30, 15);
-                
-                // Fecha
                 doc.setFontSize(10);
-                doc.setTextColor(0, 0, 0);
+                doc.setTextColor(100, 100, 100);
                 const fecha = new Date().toLocaleDateString('es-ES');
-                doc.text(`Fecha: ${fecha}`, 15, 30);
+                doc.text(`Fecha: ${fecha}`, 15, 40);
                 
                 // Tabla de productos
                 const headers = [['Producto', 'Precio Unitario', 'Cantidad', 'Subtotal']];
@@ -555,25 +629,38 @@
                     `$${p.subtotal.toFixed(2)}`
                 ]);
                 
-                // Total
                 const total = selectedProducts.reduce((sum, p) => sum + p.subtotal, 0);
                 data.push(['', '', 'TOTAL:', `$${total.toFixed(2)}`]);
                 
                 doc.autoTable({
                     head: headers,
                     body: data,
-                    startY: 40,
+                    startY: 50,
                     headStyles: {
-                        fillColor: [106, 13, 173], // Morado
-                        textColor: 255
+                        fillColor: [106, 13, 173],
+                        textColor: 255,
+                        fontStyle: 'bold'
+                    },
+                    bodyStyles: {
+                        textColor: [50, 50, 50]
                     },
                     alternateRowStyles: {
-                        fillColor: [240, 240, 240]
+                        fillColor: [245, 245, 245]
                     },
-                    margin: { top: 40 }
+                    margin: { top: 50 },
+                    styles: {
+                        cellPadding: 5,
+                        fontSize: 10,
+                        valign: 'middle'
+                    },
+                    columnStyles: {
+                        0: { cellWidth: 'auto', fontStyle: 'bold' },
+                        1: { cellWidth: 40 },
+                        2: { cellWidth: 30 },
+                        3: { cellWidth: 40 }
+                    }
                 });
                 
-                // Guardar PDF
                 doc.save(`Cotización_${fecha.replace(/\//g, '-')}.pdf`);
             });
         });
