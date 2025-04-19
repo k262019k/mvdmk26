@@ -43,8 +43,15 @@
 
         .product-selection {
             display: flex;
+            flex-direction: column;
             gap: 20px;
             margin-bottom: 30px;
+        }
+
+        @media (min-width: 768px) {
+            .product-selection {
+                flex-direction: row;
+            }
         }
 
         .product-list-container {
@@ -90,6 +97,7 @@
         .product-info-small h3 {
             margin: 0 0 5px 0;
             color: var(--primary-dark);
+            font-size: 16px;
         }
 
         .product-info-small p {
@@ -99,7 +107,8 @@
         }
 
         .selected-product {
-            flex: 0 0 300px;
+            flex: 0 0 auto;
+            width: 100%;
             background-color: white;
             padding: 20px;
             border-radius: 8px;
@@ -109,13 +118,26 @@
             align-items: center;
         }
 
+        @media (min-width: 768px) {
+            .selected-product {
+                width: 300px;
+            }
+        }
+
         .selected-image {
-            width: 200px;
-            height: 200px;
+            width: 150px;
+            height: 150px;
             object-fit: cover;
             border-radius: 8px;
             margin-bottom: 15px;
             border: 1px solid var(--border-color);
+        }
+
+        @media (min-width: 768px) {
+            .selected-image {
+                width: 200px;
+                height: 200px;
+            }
         }
 
         .product-info {
@@ -126,10 +148,12 @@
         .product-info h3 {
             margin: 0 0 5px 0;
             color: var(--primary-dark);
+            font-size: 18px;
         }
 
         .product-info p {
             margin: 5px 0;
+            font-size: 16px;
         }
 
         .btn {
@@ -158,6 +182,7 @@
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             margin-bottom: 20px;
+            overflow-x: auto;
         }
 
         .selected-products-list h2 {
@@ -169,12 +194,19 @@
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 20px;
+            min-width: 600px;
         }
 
         .list-table th, .list-table td {
-            padding: 12px 15px;
+            padding: 10px 12px;
             text-align: left;
             border-bottom: 1px solid var(--border-color);
+        }
+
+        @media (min-width: 768px) {
+            .list-table th, .list-table td {
+                padding: 12px 15px;
+            }
         }
 
         .list-table th {
@@ -183,8 +215,8 @@
         }
 
         .list-table img {
-            width: 60px;
-            height: 60px;
+            width: 50px;
+            height: 50px;
             object-fit: cover;
             border-radius: 4px;
         }
@@ -250,7 +282,7 @@
             background: #f3f4f6;
         }
 
-        /* Nuevos estilos para la sección de pagos */
+        /* Estilos para la sección de pagos */
         .payment-summary {
             background-color: white;
             padding: 20px;
@@ -368,12 +400,11 @@
             </table>
         </div>
 
-        <!-- Nueva sección de resumen de pago -->
+        <!-- Sección de resumen de pago -->
         <div class="payment-summary">
             <h2>Resumen de compra</h2>
             
             <div id="payment-options">
-                <!-- Las opciones de pago se generarán aquí dinámicamente -->
                 <div class="empty-message">Agrega productos para ver las opciones de pago</div>
             </div>
         </div>
